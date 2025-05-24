@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Login Success</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+        }
+        pre {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            overflow-x: auto;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #user-info {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Login Successful! 🎉</h1>
+    
+    <h2>Your JWT Token:</h2>
+    <pre id="token-display">Loading token...</pre>
+    
+    <button onclick="fetchUserInfo()">Test API with Token</button>
+    <button onclick="copyToken()">Copy Token</button>
+    <button onclick="clearToken()">Clear Token</button>
+    
+    <h2>User Information:</h2>
+    <pre id="user-info">Click "Test API with Token" to fetch user info</pre>
+    
+    <script>
+        // Extract token from URL when page loads
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+            
+            if (token) {
+                // Store in localStorage
+                localStorage.setItem('auth_token', token);
+                
+                // Display token with formatting
+                displayToken(token);
+                
+                // Clean up URL by removing token parameter
+                const url = new URL(window.location.href);
+                url.searchParams.delete('token');
+                window.history.replaceState({}, document.title, url);
+            } else {
+                // Try to get from localStorage if not in URL
+                const storedToken = localStorage.getItem('auth_token');
+                if (storedToken) {
+                    displayToken(storedToken);
+                } else {
+                    document.getElementById('token-display').textContent = 'No token found!';
+                }
+            }
+        }
+        
+        function displayToken(token) {
+            document.getElementById('token-display').textContent = token;
+            
+            // Optional: show decoded token parts
+            try {
+                const parts = token.split('.');
+                if (parts.length === 3) {
+                    const header = JSON.parse(atob(parts[0]));
+                    const payload = JSON.parse(atob(parts[1]));
+                    
+                    const expiryDate = new Date(payload.exp * 1000);
+                    document.getElementById('token-display').textContent += 
+                        '\n\n// Decoded Payload:\n' + 
+                        JSON.stringify(payload, null, 2) +
+                        '\n\n// Expires at: ' + expiryDate.toLocaleString();
+                }
+            } catch (e) {
+                console.error('Error decoding token:', e);
+            }
+        }
+        
+        function fetchUserInfo() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                document.getElementById('user-info').textContent = 'No token available!';
+                return;
+            }
+            
+            document.getElementById('user-info').textContent = 'Loading...';
+            
+            fetch('/api/user', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('API request failed with status ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('user-info').textContent = JSON.stringify(data, null, 2);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('user-info').textContent = 'Error: ' + error.message;
+            });
+        }
+        
+        function copyToken() {
+            const token = localStorage.getItem('auth_token');
+            if (token) {
+                navigator.clipboard.writeText(token)
+                    .then(() => alert('Token copied to clipboard!'))
+                    .catch(err => console.error('Failed to copy token: ', err));
+            } else {
+                alert('No token to copy!');
+            }
+        }
+        
+        function clearToken() {
+            localStorage.removeItem('auth_token');
+            document.getElementById('token-display').textContent = 'Token cleared!';
+            document.getElementById('user-info').textContent = 'Click "Test API with Token" to fetch user info';
+        }
+    </script>
+</body>
+</html>
